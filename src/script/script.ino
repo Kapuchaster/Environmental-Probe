@@ -1,4 +1,4 @@
-#include <Arduino.h>
+  #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
 
@@ -7,11 +7,15 @@
 #include <Adafruit_BMP280.h>
 #include "Adafruit_MCP9808.h"
 #include "Adafruit_TSL2591.h"
+#include <SHT1x.h>
 
 #define BMP_SCK 13
 #define BMP_MISO 12
 #define BMP_MOSI 11 
 #define BMP_CS 10
+#define dataPin  10
+#define clockPin 11
+SHT1x sht1x(dataPin, clockPin);
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_BMP280 bmp; // I2C
@@ -28,7 +32,9 @@ void setup() {
   Serial.println(F("BMP280 test"));
   Serial.println("MCP9808 demo");
   Serial.println(F("Starting Adafruit TSL2591 Test!"));
-
+  Serial.println("UV Test!");
+  Serial.println("SHT10 Starting up");
+  
   if (!sht31.begin(0x44)) {   // Set to 0x45 for alternate i2c addr
     Serial.println("Couldn't find SHT31");
     while (1) delay(1);
@@ -61,6 +67,13 @@ void loop() {
   Serial.println();
   Serial.println("---TSL_LUX---");
   TSL();
+  Serial.println();
+  Serial.println("---UV---");
+  UV();
+  Serial.println();
+  Serial.println("---SHT_GLEBA---");
+  SHT_gleba();
+  
   Serial.println();
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println();
@@ -96,11 +109,11 @@ void BMP() {
   Serial.print(bmp.readTemperature());
   Serial.println(" *C");
   
-  Serial.print(F(" Pressure = "));
+  Serial.print(F("  Pressure = "));
   Serial.print(bmp.readPressure());
   Serial.println(" Pa");
 
-  Serial.print(F(" Approx altitude = "));
+  Serial.print(F("  Approx altitude = "));
   Serial.print(bmp.readAltitude(1013.25)); // this should be adjusted to your local forcase
   Serial.println(" m");
 }
@@ -118,6 +131,36 @@ void TSL(void)
   Serial.print(F("Full: ")); Serial.print(full); Serial.print(F("  "));
   Serial.print(F("Visible: ")); Serial.print(full - ir); Serial.print(F("  "));
   Serial.print(F("Lux: ")); Serial.println(tsl.calculateLux(full, ir), 6);
+}
+
+void UV(void) {
+  float sensorVoltage; 
+  float sensorValue;
+ 
+  sensorValue = analogRead(A0);
+  sensorVoltage = sensorValue/1024*3.3;
+  Serial.print("  sensor reading = ");
+  Serial.print(sensorValue);
+  Serial.println("");
+  Serial.print("  sensor voltage = ");
+  Serial.print(sensorVoltage);
+  Serial.println(" V");
+}
+
+void SHT_gleba(void) {
+  float temp_c;
+  float humidity;
+    // Read values from the sensor
+  temp_c = sht1x.readTemperatureC();
+  humidity = sht1x.readHumidity();
+
+  // Print the values to the serial port
+  Serial.print("  Temperature: ");
+  Serial.print(temp_c, DEC);
+  Serial.print("C / ");
+  Serial.print("  Humidity: ");
+  Serial.print(humidity);
+  Serial.println("%");
 }
 
 void configureSensorTSL(void)
