@@ -26,6 +26,10 @@ Adafruit_BMP280 bmp; // I2C
 Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); // pass in a number for the sensor identifier (for your use later)
 
+
+const int rainSensorMin = 0;     // sensor minimum
+const int rainSensorMax = 1024;  // sensor maximum
+
 void setup() {
   Serial.begin(9600);
 
@@ -89,6 +93,12 @@ void loop() {
   Serial.println();
   Serial.println("---CCS---");
   CCS();
+  Serial.println();
+  Serial.println("---RAIN---");
+  rain();
+  Serial.println();
+  Serial.println("---WIND---");
+  wind();
   Serial.println();
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -242,5 +252,18 @@ void CCS(void)
     Serial.print("]");
     Serial.println();
   }
+}
+
+void rain(void) {
+  int sensorReading = analogRead(A1);
+  int range = map(sensorReading, rainSensorMin, rainSensorMax, 0, 3);
+  Serial.print("  Rain: ");
+  Serial.print(sensorReading);
+}
+
+void wind(void) {
+  int sensorReading = analogRead(A2);
+  Serial.print("  Wind: ");
+  Serial.print(sensorReading);
 }
 
