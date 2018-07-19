@@ -1,4 +1,4 @@
-  #include <Arduino.h>
+#include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
 
@@ -8,6 +8,7 @@
 #include "Adafruit_MCP9808.h"
 #include "Adafruit_TSL2591.h"
 #include <SHT1x.h>
+#include "SparkFunCCS811.h"
 
 #define BMP_SCK 13
 #define BMP_MISO 12
@@ -15,7 +16,10 @@
 #define BMP_CS 10
 #define dataPin  10
 #define clockPin 11
+#define CCS811_ADDR 0x5B //Default I2C Address
+
 SHT1x sht1x(dataPin, clockPin);
+CCS811 mySensor(CCS811_ADDR);
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_BMP280 bmp; // I2C
@@ -34,7 +38,8 @@ void setup() {
   Serial.println(F("Starting Adafruit TSL2591 Test!"));
   Serial.println("UV Test!");
   Serial.println("SHT10 Starting up");
-  
+  Serial.println("CCS811 test");
+
   if (!sht31.begin(0x44)) {   // Set to 0x45 for alternate i2c addr
     Serial.println("Couldn't find SHT31");
     while (1) delay(1);
@@ -53,6 +58,14 @@ void setup() {
     while (1);
   } 
   configureSensorTSL();
+
+    CCS811Core::status returnCode = mySensor.begin();
+  if (returnCode != CCS811Core::SENSOR_SUCCESS)
+  {
+    Serial.println(".begin() returned with an error.");
+    while (1); //Hang if there was a problem.
+  }
+
 }
 
 void loop() {
@@ -73,8 +86,11 @@ void loop() {
   Serial.println();
   Serial.println("---SHT_GLEBA---");
   SHT_gleba();
-  
   Serial.println();
+  Serial.println("---CCS---");
+  CCS();
+  Serial.println();
+  Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println();
   delay(10000);
@@ -203,5 +219,28 @@ void configureSensorTSL(void)
   Serial.println(F(" ms"));
   Serial.println(F("------------------------------------"));
   Serial.println(F(""));
+}
+
+void CCS(void)
+{
+  //Check to see if data is ready with .dataAvailable()
+  if (mySensor.dataAvailable())
+  {
+    //If so, have the sensor read and calculate the results.
+    //Get them later
+    mySensor.readAlgorithmResults();
+
+    Serial.print("  CO2[");
+    //Returns calculated CO2 reading
+    Serial.print(mySensor.getCO2());
+    Serial.print("] tVOC[");
+    //Returns calculated TVOC reading
+    Serial.print(mySensor.getTVOC());
+    Serial.print("] millis[");
+    //Simply the time since program start
+    Serial.print(millis());
+    Serial.print("]");
+    Serial.println();
+  }
 }
 
