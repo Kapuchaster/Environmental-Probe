@@ -97,9 +97,6 @@ void loop() {
   Serial.println("---RAIN---");
   rain();
   Serial.println();
-  Serial.println("---WIND---");
-  wind();
-  Serial.println();
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println();
@@ -258,12 +255,6 @@ void rain(void) {
   int sensorReading = analogRead(A1);
   int range = map(sensorReading, rainSensorMin, rainSensorMax, 0, 3);
   Serial.print("  Rain: ");
-  Serial.print(sensorReading);
-}
-
-void wind(void) {
-  int sensorReading = analogRead(A2);
-  Serial.print("  Wind: ");
   Serial.print(sensorReading);
 }
 
