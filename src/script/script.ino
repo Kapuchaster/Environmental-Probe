@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
-
+#include "RTClib.h"
 #include "Adafruit_SHT31.h"
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
@@ -9,6 +9,7 @@
 #include "Adafruit_TSL2591.h"
 #include <SHT1x.h>
 #include "SparkFunCCS811.h"
+#include <SD.h>
 
 #define BMP_SCK 13
 #define BMP_MISO 12
@@ -18,17 +19,20 @@
 #define clockPin 11
 #define CCS811_ADDR 0x5B //Default I2C Address
 
-SHT1x sht1x(dataPin, clockPin);
+//SHT1x sht1x(dataPin, clockPin);
 CCS811 mySensor(CCS811_ADDR);
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 Adafruit_BMP280 bmp; // I2C
 Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591); // pass in a number for the sensor identifier (for your use later)
+RTC_PCF8523 rtc;
 
 
 const int rainSensorMin = 0;     // sensor minimum
 const int rainSensorMax = 1024;  // sensor maximum
+const int chipSelect = 4;
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 void setup() {
   Serial.begin(9600);
@@ -43,7 +47,15 @@ void setup() {
   Serial.println("UV Test!");
   Serial.println("SHT10 Starting up");
   Serial.println("CCS811 test");
+  Serial.print("Initializing SD card...");
 
+  // see if the card is present and can be initialized:
+  if (!SD.begin(chipSelect)) {
+    Serial.println("Card failed, or not present");
+    while (1) delay(1);
+  }
+  Serial.println("card initialized.");
+  
   if (!sht31.begin(0x44)) {   // Set to 0x45 for alternate i2c addr
     Serial.println("Couldn't find SHT31");
     while (1) delay(1);
@@ -63,6 +75,12 @@ void setup() {
   } 
   configureSensorTSL();
 
+  if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+
+
     CCS811Core::status returnCode = mySensor.begin();
   if (returnCode != CCS811Core::SENSOR_SUCCESS)
   {
@@ -73,29 +91,39 @@ void setup() {
 }
 
 void loop() {
-  Serial.println("---SHT_HUM_TEMP---");
-  SHT();
-  Serial.println();
-  Serial.println("---BMP_PRES_TEMP_ALT---");
-  BMP();
-  Serial.println();
-  Serial.println("---MCP_TEMP_PREC---");
-  MCP();
-  Serial.println();
-  Serial.println("---TSL_LUX---");
-  TSL();
-  Serial.println();
-  Serial.println("---UV---");
-  UV();
-  Serial.println();
-  Serial.println("---SHT_GLEBA---");
-  SHT_gleba();
-  Serial.println();
-  Serial.println("---CCS---");
-  CCS();
-  Serial.println();
-  Serial.println("---RAIN---");
-  rain();
+    String dataString;
+    CCS(dataString);
+    File dataFile = SD.open("datalog.txt", FILE_WRITE);
+    dataFile.println(dataString);
+    dataFile.close();
+    Serial.println(dataString);
+//    
+//  Serial.println("---SHT_HUM_TEMP---");
+//  SHT();
+//  Serial.println();
+//  Serial.println("---BMP_PRES_TEMP_ALT---");
+//  BMP();
+//  Serial.println();
+//  Serial.println("---MCP_TEMP_PREC---");
+//  MCP();
+//  Serial.println();
+//  Serial.println("---TSL_LUX---");
+//  TSL();
+//  Serial.println();
+//  Serial.println("---UV---");
+//  UV();
+//  Serial.println();
+//  Serial.println("---SHT_GLEBA---");
+////  SHT_gleba();
+//  Serial.println();
+//  Serial.println("---CCS---");
+//  CCS();
+//  Serial.println();
+//  Serial.println("---RAIN---");
+//  rain();
+//  Serial.println();
+//  Serial.println("---RTC---");
+//  RTC();
   Serial.println();
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
   Serial.println("++++++++++++++++++++++++++++++++++++++++++++++++++");
@@ -170,21 +198,21 @@ void UV(void) {
   Serial.println(" V");
 }
 
-void SHT_gleba(void) {
-  float temp_c;
-  float humidity;
-    // Read values from the sensor
-  temp_c = sht1x.readTemperatureC();
-  humidity = sht1x.readHumidity();
-
-  // Print the values to the serial port
-  Serial.print("  Temperature: ");
-  Serial.print(temp_c, DEC);
-  Serial.print("C / ");
-  Serial.print("  Humidity: ");
-  Serial.print(humidity);
-  Serial.println("%");
-}
+//void SHT_gleba(void) {
+//  float temp_c;
+//  float humidity;
+//    // Read values from the sensor
+//  temp_c = sht1x.readTemperatureC();
+//  humidity = sht1x.readHumidity();
+//
+//  // Print the values to the serial port
+//  Serial.print("  Temperature: ");
+//  Serial.print(temp_c, DEC);
+//  Serial.print("C / ");
+//  Serial.print("  Humidity: ");
+//  Serial.print(humidity);
+//  Serial.println("%");
+//}
 
 void configureSensorTSL(void)
 {
@@ -228,7 +256,7 @@ void configureSensorTSL(void)
   Serial.println(F(""));
 }
 
-void CCS(void)
+void CCS(String &str)
 {
   //Check to see if data is ready with .dataAvailable()
   if (mySensor.dataAvailable())
@@ -236,18 +264,18 @@ void CCS(void)
     //If so, have the sensor read and calculate the results.
     //Get them later
     mySensor.readAlgorithmResults();
-
-    Serial.print("  CO2[");
-    //Returns calculated CO2 reading
-    Serial.print(mySensor.getCO2());
-    Serial.print("] tVOC[");
-    //Returns calculated TVOC reading
-    Serial.print(mySensor.getTVOC());
-    Serial.print("] millis[");
-    //Simply the time since program start
-    Serial.print(millis());
-    Serial.print("]");
-    Serial.println();
+    str = "CO2: " + String(mySensor.getCO2()) + " tVOC: " + String(mySensor.getTVOC());
+//    Serial.print("  CO2[");
+//    //Returns calculated CO2 reading
+//    Serial.print(mySensor.getCO2());
+//    Serial.print("] tVOC[");
+//    //Returns calculated TVOC reading
+//    Serial.print(mySensor.getTVOC());
+//    Serial.print("] millis[");
+//    //Simply the time since program start
+//    Serial.print(millis());
+//    Serial.print("]");
+//    Serial.println();
   }
 }
 
@@ -256,5 +284,15 @@ void rain(void) {
   int range = map(sensorReading, rainSensorMin, rainSensorMax, 0, 3);
   Serial.print("  Rain: ");
   Serial.print(sensorReading);
+}
+
+void RTC(void) {
+  DateTime now = rtc.now();
+  Serial.print(now.hour(), DEC);
+    Serial.print(':');
+    Serial.print(now.minute(), DEC);
+    Serial.print(':');
+    Serial.print(now.second(), DEC);
+    Serial.println();
 }
 
